@@ -12,8 +12,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "lucide-react": "^0.294.0",
-    "qr-code-styling": "^1.6.0",
-    "color-thief-browser": "^2.0.0"
+    "qr-code-styling": "^1.6.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",

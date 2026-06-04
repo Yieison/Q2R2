@@ -38,13 +38,20 @@ function App() {
       src: '',
       size: 0.32,
       margin: 6,
-      hideBackgroundDots: true
+      hideBackgroundDots: true,
+      syncColors: false,
+      hasTransparentBackground: false,
+      usePlate: false,
+      renderSrc: ''
     }
   })
   
   const qrContainerRef = useRef(null)
   const qrInstanceRef = useRef(null)
   const currentYear = new Date().getFullYear()
+  const qrLogoSrc = qrStyle.logo.usePlate && qrStyle.logo.renderSrc
+    ? qrStyle.logo.renderSrc
+    : qrStyle.logo.src
 
   const computeDotsOptions = () => {
     if (qrStyle.useGradient) {
@@ -89,11 +96,11 @@ function App() {
           color: qrStyle.fgColor,
           type: qrStyle.cornerDotStyle
         },
-        image: qrStyle.logo.enabled && qrStyle.logo.src ? qrStyle.logo.src : undefined,
+        image: qrStyle.logo.enabled && qrLogoSrc ? qrLogoSrc : undefined,
         imageOptions: {
-          hideBackgroundDots: qrStyle.logo.hideBackgroundDots,
-          imageSize: qrStyle.logo.size,
-          margin: qrStyle.logo.margin,
+          hideBackgroundDots: qrStyle.logo.usePlate ? false : qrStyle.logo.hideBackgroundDots,
+          imageSize: Math.min(qrStyle.logo.size, qrStyle.logo.usePlate ? 0.36 : 0.38),
+          margin: qrStyle.logo.usePlate ? 0 : qrStyle.logo.margin,
           crossOrigin: 'anonymous'
         }
       })
@@ -130,14 +137,19 @@ function App() {
         color: qrStyle.fgColor,
         type: qrStyle.cornerDotStyle
       },
-      image: qrStyle.logo.enabled && qrStyle.logo.src ? qrStyle.logo.src : undefined,
+      image: qrStyle.logo.enabled && qrLogoSrc ? qrLogoSrc : undefined,
       imageOptions: {
-        hideBackgroundDots: qrStyle.logo.hideBackgroundDots,
-        imageSize: qrStyle.logo.size,
-        margin: qrStyle.logo.margin,
+        hideBackgroundDots: qrStyle.logo.usePlate ? false : qrStyle.logo.hideBackgroundDots,
+        imageSize: Math.min(qrStyle.logo.size, qrStyle.logo.usePlate ? 0.36 : 0.38),
+        margin: qrStyle.logo.usePlate ? 0 : qrStyle.logo.margin,
         crossOrigin: 'anonymous'
       }
     })
+
+    if (qrContainerRef.current) {
+      qrContainerRef.current.replaceChildren()
+      qrInstanceRef.current.append(qrContainerRef.current)
+    }
   }, [
     qrData,
     qrStyle.size,
@@ -257,11 +269,11 @@ function App() {
               
               {/* QR Code Display */}
               <div 
-                className="flex justify-center items-center p-8 bg-gray-50 rounded-lg mb-6 min-h-[320px]"
+                className="flex justify-center items-center p-8 bg-gray-50 rounded-lg mb-6 min-h-[320px] overflow-hidden"
               >
                 <div
                   ref={qrContainerRef}
-                  className={`${qrData ? 'block' : 'hidden'} transition-all duration-300 ease-in-out`}
+                  className={`${qrData ? 'block' : 'hidden'} transition-all duration-300 ease-in-out [&>canvas]:max-w-full [&>canvas]:h-auto [&>svg]:max-w-full [&>svg]:h-auto`}
                 />
                 {!qrData && (
                   <div className="text-center text-gray-400">
