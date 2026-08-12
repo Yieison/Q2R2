@@ -25,6 +25,7 @@ function App() {
     includeMargin: true,
     dotStyle: 'square',
     cornerSquareStyle: 'square',
+    cornerSquareColor: '#000000',
     cornerDotStyle: 'dot',
     useGradient: false,
     gradient: {
@@ -89,7 +90,7 @@ function App() {
         },
         dotsOptions: computeDotsOptions(),
         cornersSquareOptions: {
-          color: qrStyle.fgColor,
+          color: qrStyle.cornerSquareColor,
           type: qrStyle.cornerSquareStyle
         },
         cornersDotOptions: {
@@ -130,7 +131,7 @@ function App() {
       },
       dotsOptions: computeDotsOptions(),
       cornersSquareOptions: {
-        color: qrStyle.fgColor,
+        color: qrStyle.cornerSquareColor,
         type: qrStyle.cornerSquareStyle
       },
       cornersDotOptions: {
@@ -159,6 +160,7 @@ function App() {
     qrStyle.includeMargin,
     qrStyle.dotStyle,
     qrStyle.cornerSquareStyle,
+    qrStyle.cornerSquareColor,
     qrStyle.cornerDotStyle,
     qrStyle.useGradient,
     qrStyle.gradient,

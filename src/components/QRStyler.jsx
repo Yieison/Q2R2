@@ -13,6 +13,17 @@ const rgbArrayToHex = (rgb = []) => {
   return `#${componentToHex(r)}${componentToHex(g)}${componentToHex(b)}`
 }
 
+const hexToRgb = (hex = '') => {
+  const clean = hex.replace('#', '')
+  if (!/^[0-9a-f]{6}$/i.test(clean)) return null
+
+  return [
+    parseInt(clean.substring(0, 2), 16),
+    parseInt(clean.substring(2, 4), 16),
+    parseInt(clean.substring(4, 6), 16)
+  ]
+}
+
 const getRelativeLuminance = ([red = 0, green = 0, blue = 0]) => {
   const normalize = (channel) => {
     const value = channel / 255
@@ -22,6 +33,16 @@ const getRelativeLuminance = ([red = 0, green = 0, blue = 0]) => {
   }
 
   return 0.2126 * normalize(red) + 0.7152 * normalize(green) + 0.0722 * normalize(blue)
+}
+
+const getContrastRatio = (left, right) => {
+  const leftRgb = hexToRgb(left)
+  const rightRgb = hexToRgb(right)
+  if (!leftRgb || !rightRgb) return null
+
+  const lighter = Math.max(getRelativeLuminance(leftRgb), getRelativeLuminance(rightRgb))
+  const darker = Math.min(getRelativeLuminance(leftRgb), getRelativeLuminance(rightRgb))
+  return (lighter + 0.05) / (darker + 0.05)
 }
 
 const getSaturation = (red = 0, green = 0, blue = 0) => {
@@ -275,6 +296,16 @@ const QRStyler = ({ style, onChange }) => {
     onChange(prev => ({ ...prev, [field]: value }))
   }
 
+  const updateForegroundColor = (value) => {
+    onChange(prev => ({
+      ...prev,
+      fgColor: value,
+      cornerSquareColor: prev.cornerSquareColor === prev.fgColor
+        ? value
+        : prev.cornerSquareColor
+    }))
+  }
+
   const updateLogo = (value) => {
     onChange(prev => ({ ...prev, logo: { ...prev.logo, ...value } }))
   }
@@ -289,6 +320,9 @@ const QRStyler = ({ style, onChange }) => {
 
     return {
       fgColor: primary,
+      cornerSquareColor: prev.cornerSquareColor === prev.fgColor
+        ? primary
+        : prev.cornerSquareColor,
       gradient: prev.useGradient
         ? {
             ...prev.gradient,
@@ -466,6 +500,16 @@ const QRStyler = ({ style, onChange }) => {
     { label: 'Muy Alto (30%)', value: 'H' }
   ]
 
+  const cornerSquareColor = style.cornerSquareColor ?? style.fgColor
+  const cornerContrast = getContrastRatio(cornerSquareColor, style.bgColor)
+  const cornerRgb = hexToRgb(cornerSquareColor)
+  const backgroundRgb = hexToRgb(style.bgColor)
+  const hasRecommendedCornerContrast = cornerContrast !== null &&
+    cornerRgb !== null &&
+    backgroundRgb !== null &&
+    cornerContrast >= 4.5 &&
+    getRelativeLuminance(cornerRgb) < getRelativeLuminance(backgroundRgb)
+
   return (
     <div className="space-y-6">
       {/* Size Selection */}
@@ -505,6 +549,7 @@ const QRStyler = ({ style, onChange }) => {
                   ...prev,
                   fgColor: preset.fg,
                   bgColor: preset.bg,
+                  cornerSquareColor: preset.fg,
                 }))
               }
               className="group relative p-3 border-2 rounded-lg hover:border-primary-400 transition-all"
@@ -535,13 +580,13 @@ const QRStyler = ({ style, onChange }) => {
             <input
               type="color"
               value={style.fgColor}
-              onChange={(e) => updateStyle('fgColor', e.target.value)}
+              onChange={(e) => updateForegroundColor(e.target.value)}
               className="w-12 h-10 rounded border border-gray-300 cursor-pointer"
             />
             <input
               type="text"
               value={style.fgColor}
-              onChange={(e) => updateStyle('fgColor', e.target.value)}
+              onChange={(e) => updateForegroundColor(e.target.value)}
               className="flex-1 input-field text-sm font-mono"
             />
           </div>
@@ -739,9 +784,48 @@ const QRStyler = ({ style, onChange }) => {
       {/* Corner Styles */}
       <div className="grid md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-3">
-            Marcos de las esquinas
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <label className="block text-sm font-medium text-gray-700">
+              Marcos de las esquinas
+            </label>
+            {cornerSquareColor !== style.fgColor && (
+              <button
+                type="button"
+                onClick={() => updateStyle('cornerSquareColor', style.fgColor)}
+                className="text-xs font-medium text-primary-600 hover:text-primary-700"
+              >
+                Igualar al QR
+              </button>
+            )}
+          </div>
+          <label className="block text-xs font-medium text-gray-600 mb-2">
+            Color del borde
           </label>
+          <div className="flex gap-2 mb-2">
+            <input
+              type="color"
+              value={cornerSquareColor}
+              onChange={(e) => updateStyle('cornerSquareColor', e.target.value)}
+              className="w-12 h-10 rounded border border-gray-300 cursor-pointer"
+            />
+            <input
+              type="text"
+              value={cornerSquareColor}
+              onChange={(e) => updateStyle('cornerSquareColor', e.target.value)}
+              className="flex-1 input-field text-sm font-mono"
+              aria-label="Color del borde de los marcadores de posición"
+            />
+          </div>
+          {cornerContrast !== null && (
+            <p className={`text-xs mb-3 ${
+              hasRecommendedCornerContrast ? 'text-emerald-700' : 'text-amber-700'
+            }`}>
+              Contraste {cornerContrast.toFixed(1)}:1.{' '}
+              {hasRecommendedCornerContrast
+                ? 'Buena separación frente al fondo.'
+                : 'Usa un borde más oscuro que el fondo y procura al menos 4.5:1.'}
+            </p>
+          )}
           <div className="grid grid-cols-1 gap-2">
             {cornerSquareStyles.map(option => (
               <button
