@@ -1,0 +1,9 @@
+# Q2R2
+
+> Generador gratuito de códigos QR personalizables. Permite crear y descargar PNGs limpios para URLs, texto, WiFi, email y teléfono con colores, degradados y logos, directamente en el navegador.
+
+## Páginas públicas importantes
+
+- [Inicio](/): Información sobre Q2R2.
+- [Generador](/app): Crea y descarga códigos QR gratis.
+- [Registro / Inicio de sesión](/auth): Cuenta opcional para guardar QRs.

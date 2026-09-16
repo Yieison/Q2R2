@@ -1,90 +1,58 @@
-# Gen QR - Generador de Códigos QR Profesional
+# Q2R2
 
-Una plataforma moderna y elegante para generar códigos QR personalizables desde múltiples fuentes de datos.
+Generador gratuito de códigos QR para enlaces, texto, WiFi, correo y teléfono. Personaliza colores, degradados, formas y logos, y descarga el PNG directamente desde el navegador, sin cuenta ni marcas de agua.
 
-## ✨ Características
+Las cuentas son opcionales: sirven para guardar, editar y recuperar QRs en una biblioteca privada cifrada.
 
-- 🎨 **Totalmente Personalizable**: Cambia colores, tamaños y niveles de corrección de errores
-- 🔗 **Múltiples Tipos de QR**:
-  - URLs
-  - Texto libre
-  - Configuración WiFi
-  - Email con asunto y cuerpo
-  - Números de teléfono
-- 📱 **Diseño Responsive**: Funciona perfectamente en móviles, tablets y escritorio
-- ⚡ **Tiempo Real**: Vista previa instantánea mientras editas
-- 💾 **Descarga Directa**: Guarda tus QR en formato PNG de alta calidad
-- 🎯 **Interfaz Moderna**: Diseñada con React y TailwindCSS
+## Desarrollo
 
-## 🚀 Inicio Rápido
+Requisitos: Node.js 20.19+ o 22.12+, npm y PostgreSQL.
 
-### Instalación
+1. `npm ci`
+2. Copia `.env.example` a `.env` y define `DATABASE_URL` y un `SESSION_SECRET` aleatorio (mínimo 32 bytes).
+3. `npm run db:push` para crear el esquema.
+4. `npm run dev` — la aplicación escucha en el puerto 5000.
 
-```bash
-npm install
-```
+Producción:
 
-### Desarrollo
-
-```bash
-npm run dev
-```
-
-La aplicación se abrirá automáticamente en `http://localhost:3000`
-
-### Compilación para Producción
-
-```bash
+```sh
 npm run build
+npm start
 ```
 
-## 🛠️ Tecnologías Utilizadas
+Usa HTTPS en producción: las cookies de sesión son seguras y no funcionan sobre HTTP.
 
-- **React 18** - Framework de UI
-- **Vite** - Build tool ultrarrápido
-- **TailwindCSS** - Framework CSS utility-first
-- **qrcode.react** - Generación de códigos QR
-- **Lucide React** - Iconos modernos
+| Comando | Uso |
+| --- | --- |
+| `npm run dev` | Express y Vite en desarrollo |
+| `npm run build` | Compilación del cliente |
+| `npm start` | Servidor de producción |
+| `npm test` | Pruebas de cifrado y validación |
+| `npm run db:push` | Aplicar el esquema PostgreSQL |
 
-## 📖 Uso
+## Datos y privacidad
 
-1. **Selecciona el tipo de QR** que deseas generar (URL, Texto, WiFi, Email, Teléfono)
-2. **Ingresa el contenido** específico según el tipo seleccionado
-3. **Personaliza el diseño** con colores, tamaños y niveles de corrección
-4. **Visualiza en tiempo real** tu código QR
-5. **Descarga** el resultado en formato PNG
+- Crear y descargar un QR ocurre en el navegador; el contenido solo se envía al servidor si eliges guardarlo.
+- Los QRs guardados (nombre, contenido, estilo y logo) se cifran con AES-256-GCM. Es cifrado en el servidor, no de extremo a extremo.
+- Las contraseñas se protegen con scrypt y salt individual.
+- La clave de cifrado se deriva de `SESSION_SECRET`; opcionalmente puedes definir `QR_ENCRYPTION_KEY` (64 caracteres hexadecimales). No cambies una clave en uso sin volver a cifrar los registros existentes.
+- Un QR descargado es legible por cualquiera que lo escanee; borrarlo de la biblioteca no desactiva las copias descargadas.
 
-### Ejemplos de Uso
+## Apoyo voluntario
 
-#### WiFi
-Genera un QR para que los invitados se conecten automáticamente a tu red WiFi sin necesidad de escribir la contraseña.
+Opcionalmente puedes aceptar aportes únicos a través de Wompi configurando las variables `WOMPI_*` de `.env.example` con las credenciales de tu propia cuenta. Si no están definidas, la sección de apoyo se muestra como no disponible y el resto de la aplicación funciona igual. El apoyo no desbloquea funciones ni guarda datos de pago.
 
-#### URLs
-Crea enlaces rápidos a sitios web, menús de restaurantes, perfiles de redes sociales, etc.
+## Estructura
 
-#### Email
-Facilita el contacto con QR que prellenan formularios de email con destinatario, asunto y mensaje.
+- `src/`: interfaz React, generador, autenticación y biblioteca.
+- `server/`: Express, sesiones y almacenamiento cifrado.
+- `shared/`: esquema y opciones de QR compartidas.
+- `tests/`: pruebas con datos sintéticos.
 
-## 🎨 Personalización
+## Contribuir
 
-- **6 paletas de colores** predefinidas
-- **Selector de colores personalizado** para QR y fondo
-- **4 tamaños** predefinidos (128px a 512px)
-- **4 niveles de corrección** de errores (L, M, Q, H)
-- **Márgenes configurables**
+Abre un issue para proponer cambios importantes. Antes de enviar cambios, ejecuta `npm test` y `npm run build`.
 
-## 📝 Notas
+## Licencia
 
-Los códigos QR generados son **100% funcionales** y pueden ser escaneados con cualquier lector de QR estándar en smartphones iOS y Android.
-
-## 🤝 Contribuciones
-
-Las contribuciones son bienvenidas. Por favor, abre un issue primero para discutir cambios mayores.
-
-## 📄 Licencia
-
-MIT
-
----
-
-Creado con ❤️ usando React y TailwindCSS
+MIT. Consulta [LICENSE](LICENSE).

@@ -1,4 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import {
+  generateEmailString,
+  generatePhoneString,
+  generateWifiString,
+  parseEmailString,
+  parsePhoneValue,
+  parseWifiString,
+} from '../lib/qr-input-values'
 
 const QRInput = ({ type, value, onChange }) => {
   const [wifiData, setWifiData] = useState({
@@ -42,6 +50,8 @@ const QRInput = ({ type, value, onChange }) => {
 
   const [phoneCountry, setPhoneCountry] = useState(phoneCountries[0])
   const [phoneNumber, setPhoneNumber] = useState('')
+  const lastEmittedValueRef = useRef(null)
+  const syncedTypeRef = useRef(null)
 
   const formatNationalNumber = (digits = '', groups = []) => {
     const maxLength = groups.reduce((acc, group) => acc + group, 0)
@@ -56,7 +66,8 @@ const QRInput = ({ type, value, onChange }) => {
       index += group
     })
 
-    return segments.join(' ')
+    const overflow = digits.slice(maxLength)
+    return [segments.join(' '), overflow].filter(Boolean).join(' ')
   }
 
   const updatePhoneValue = (rawDigits = '', country = phoneCountry) => {
@@ -64,39 +75,44 @@ const QRInput = ({ type, value, onChange }) => {
     setPhoneNumber(formattedNational)
 
     const e164 = rawDigits ? `${country.dialCode}${rawDigits}` : ''
-    onChange(generatePhoneString(e164))
+    const nextValue = generatePhoneString(e164)
+    lastEmittedValueRef.current = nextValue
+    onChange(nextValue)
   }
 
-  // Generate WiFi QR string format
-  const generateWiFiString = (data) => {
-    return `WIFI:T:${data.encryption};S:${data.ssid};P:${data.password};H:${data.hidden};`
-  }
+  useEffect(() => {
+    const typeChanged = syncedTypeRef.current !== type
+    const isExternalValue = lastEmittedValueRef.current !== value
+    if (!typeChanged && !isExternalValue) return
 
-  // Generate Email QR string format
-  const generateEmailString = (data) => {
-    let str = `mailto:${data.email}`
-    const params = []
-    if (data.subject) params.push(`subject=${encodeURIComponent(data.subject)}`)
-    if (data.body) params.push(`body=${encodeURIComponent(data.body)}`)
-    if (params.length > 0) str += `?${params.join('&')}`
-    return str
-  }
+    if (type === 'wifi') {
+      setWifiData(parseWifiString(value))
+    } else if (type === 'email') {
+      setEmailData(parseEmailString(value))
+    } else if (type === 'phone') {
+      const parsed = parsePhoneValue(value, phoneCountries)
+      setPhoneCountry(parsed.country)
+      setPhoneNumber(formatNationalNumber(parsed.digits, parsed.country.format))
+    }
 
-  // Generate Phone QR string format
-  const generatePhoneString = (phone) => {
-    return `tel:${phone}`
-  }
+    syncedTypeRef.current = type
+    lastEmittedValueRef.current = value
+  }, [type, value])
 
   const handleWifiChange = (field, val) => {
     const newData = { ...wifiData, [field]: val }
     setWifiData(newData)
-    onChange(generateWiFiString(newData))
+    const nextValue = generateWifiString(newData)
+    lastEmittedValueRef.current = nextValue
+    onChange(nextValue)
   }
 
   const handleEmailChange = (field, val) => {
     const newData = { ...emailData, [field]: val }
     setEmailData(newData)
-    onChange(generateEmailString(newData))
+    const nextValue = generateEmailString(newData)
+    lastEmittedValueRef.current = nextValue
+    onChange(nextValue)
   }
 
   const handlePhoneChange = (val) => {

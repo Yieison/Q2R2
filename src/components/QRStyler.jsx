@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createLogoPlateSrc, hydrateLogoStyle, loadLogoImage as loadImage } from '../lib/logo-image'
+import { optimizeLogoFile } from '../lib/optimize-logo'
 
 const componentToHex = (value = 0) => {
   const clamped = Math.max(0, Math.min(255, Math.round(value)))
@@ -77,20 +79,6 @@ const quantizeChannel = (value = 0, step = 12) => {
   return Math.max(0, Math.min(255, quantized))
 }
 
-const cleanupLegacyColorThiefCanvases = () => {
-  if (typeof document === 'undefined') return
-  document.querySelectorAll('body > canvas').forEach((canvas) => canvas.remove())
-}
-
-const loadImage = (src) =>
-  new Promise((resolve, reject) => {
-    const image = new Image()
-    image.crossOrigin = 'Anonymous'
-    image.onload = () => resolve(image)
-    image.onerror = reject
-    image.src = src
-  })
-
 const analyzeImageElement = (image, colorCount = 6, quality = 5) => {
   const width = image.naturalWidth || image.width
   const height = image.naturalHeight || image.height
@@ -166,117 +154,6 @@ const analyzeImageElement = (image, colorCount = 6, quality = 5) => {
   return { palette, hasTransparency }
 }
 
-const getVisibleImageBounds = (image) => {
-  const width = image.naturalWidth || image.width
-  const height = image.naturalHeight || image.height
-
-  if (!width || !height) return null
-
-  const canvas = document.createElement('canvas')
-  canvas.width = width
-  canvas.height = height
-
-  const context = canvas.getContext('2d', { willReadFrequently: true })
-  if (!context) return null
-
-  context.drawImage(image, 0, 0, width, height)
-  const { data } = context.getImageData(0, 0, width, height)
-  let minX = width
-  let minY = height
-  let maxX = -1
-  let maxY = -1
-
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const alpha = data[(y * width + x) * 4 + 3]
-      if (alpha <= 24) continue
-
-      minX = Math.min(minX, x)
-      minY = Math.min(minY, y)
-      maxX = Math.max(maxX, x)
-      maxY = Math.max(maxY, y)
-    }
-  }
-
-  if (maxX < minX || maxY < minY) {
-    return { x: 0, y: 0, width, height }
-  }
-
-  return {
-    x: minX,
-    y: minY,
-    width: maxX - minX + 1,
-    height: maxY - minY + 1
-  }
-}
-
-const drawRoundedRect = (context, x, y, width, height, radius) => {
-  const safeRadius = Math.min(radius, width / 2, height / 2)
-
-  context.beginPath()
-  context.moveTo(x + safeRadius, y)
-  context.lineTo(x + width - safeRadius, y)
-  context.quadraticCurveTo(x + width, y, x + width, y + safeRadius)
-  context.lineTo(x + width, y + height - safeRadius)
-  context.quadraticCurveTo(x + width, y + height, x + width - safeRadius, y + height)
-  context.lineTo(x + safeRadius, y + height)
-  context.quadraticCurveTo(x, y + height, x, y + height - safeRadius)
-  context.lineTo(x, y + safeRadius)
-  context.quadraticCurveTo(x, y, x + safeRadius, y)
-  context.closePath()
-}
-
-const createLogoPlateSrc = (image) => {
-  const bounds = getVisibleImageBounds(image)
-  if (!bounds) return ''
-
-  const scale = Math.min(1, 760 / bounds.width, 300 / bounds.height)
-  const logoWidth = Math.max(1, Math.round(bounds.width * scale))
-  const logoHeight = Math.max(1, Math.round(bounds.height * scale))
-  const paddingX = Math.max(18, Math.min(42, Math.round(logoWidth * 0.08)))
-  const paddingY = Math.max(12, Math.min(28, Math.round(logoHeight * 0.18)))
-  const shadowPadding = 10
-  const plateWidth = logoWidth + paddingX * 2
-  const plateHeight = logoHeight + paddingY * 2
-  const canvas = document.createElement('canvas')
-  canvas.width = plateWidth + shadowPadding * 2
-  canvas.height = plateHeight + shadowPadding * 2
-
-  const context = canvas.getContext('2d')
-  if (!context) return ''
-
-  const radius = Math.min(plateHeight / 2, 26)
-  const x = shadowPadding
-  const y = shadowPadding
-
-  context.shadowColor = 'rgba(15, 23, 42, 0.12)'
-  context.shadowBlur = 10
-  context.shadowOffsetY = 3
-  context.fillStyle = '#ffffff'
-  drawRoundedRect(context, x, y, plateWidth, plateHeight, radius)
-  context.fill()
-
-  context.shadowColor = 'transparent'
-  context.strokeStyle = 'rgba(15, 23, 42, 0.10)'
-  context.lineWidth = 1
-  drawRoundedRect(context, x + 0.5, y + 0.5, plateWidth - 1, plateHeight - 1, radius)
-  context.stroke()
-
-  context.drawImage(
-    image,
-    bounds.x,
-    bounds.y,
-    bounds.width,
-    bounds.height,
-    x + paddingX,
-    y + paddingY,
-    logoWidth,
-    logoHeight
-  )
-
-  return canvas.toDataURL('image/png')
-}
-
 const extractPaletteFromImage = (src) =>
   loadImage(src).then((image) => analyzeImageElement(image).palette)
 
@@ -287,10 +164,24 @@ const gradientTypes = [
 
 const QRStyler = ({ style, onChange }) => {
   const [logoInfo, setLogoInfo] = useState(null)
+  const uploadVersion = useRef(0)
 
   useEffect(() => {
-    cleanupLegacyColorThiefCanvases()
+    return () => { uploadVersion.current += 1 }
   }, [])
+
+  useEffect(() => {
+    if (!style.logo.src || !style.logo.usePlate || style.logo.renderSrc) return
+    let active = true
+    hydrateLogoStyle(style).then(hydrated => {
+      if (active) onChange(prev => prev.logo.src === style.logo.src
+        ? { ...prev, logo: { ...prev.logo, renderSrc: hydrated.logo.renderSrc } }
+        : prev)
+    }).catch(error => {
+      if (active) setLogoInfo({ error: error.message })
+    })
+    return () => { active = false }
+  }, [style.logo.src, style.logo.usePlate, style.logo.renderSrc, onChange])
 
   const updateStyle = (field, value) => {
     onChange(prev => ({ ...prev, [field]: value }))
@@ -356,26 +247,20 @@ const QRStyler = ({ style, onChange }) => {
     })
   }
 
-  const handleLogoUpload = (file) => {
+  const handleLogoUpload = async (file) => {
     if (!file) return
+    const version = ++uploadVersion.current
     setLogoInfo({
       name: file.name,
-      type: file.type || 'desconocido',
-      size: file.size || 0,
       loading: true
     })
-    const reader = new FileReader()
-    reader.onloadend = async () => {
-      if (typeof reader.result !== 'string') return
-      const src = reader.result
-
-      try {
-        cleanupLegacyColorThiefCanvases()
-        const previewImage = await loadImage(src)
+    try {
+        const optimized = await optimizeLogoFile(file)
+        const previewImage = await loadImage(optimized.src)
+        if (version !== uploadVersion.current) return
         const { palette, hasTransparency } = analyzeImageElement(previewImage)
         const hexPalette = palette?.map(rgbArrayToHex)
-        const width = previewImage.naturalWidth || previewImage.width
-        const height = previewImage.naturalHeight || previewImage.height
+        const { width, height } = optimized
         const aspectRatio = height ? width / height : 1
         const plateSrc = hasTransparency ? createLogoPlateSrc(previewImage) : ''
         const shouldRestoreCleanArea =
@@ -393,34 +278,19 @@ const QRStyler = ({ style, onChange }) => {
           ...(shouldRestoreCleanArea ? { hideBackgroundDots: true } : {})
         }
 
-        applyLogoPalette(src, hexPalette, { logo: logoPatch })
+        applyLogoPalette(optimized.src, hexPalette, { logo: logoPatch })
         setLogoInfo({
           name: file.name,
-          type: file.type || 'desconocido',
-          size: file.size || 0,
-          width: previewImage.naturalWidth || previewImage.width,
-          height: previewImage.naturalHeight || previewImage.height,
+          type: optimized.type,
+          size: optimized.size,
+          originalSize: file.size,
+          width,
+          height,
           hasTransparency
         })
-      } catch (error) {
-        applyLogoPalette(src, undefined, {
-          logo: {
-            hasTransparentBackground: false,
-            renderSrc: '',
-            usePlate: false
-          }
-        })
-        setLogoInfo({
-          name: file.name,
-          type: file.type || 'desconocido',
-          size: file.size || 0,
-          error: 'No se pudo analizar la imagen'
-        })
-      } finally {
-        cleanupLegacyColorThiefCanvases()
-      }
+    } catch (error) {
+      if (version === uploadVersion.current) setLogoInfo({ name: file.name, error: error.message })
     }
-    reader.readAsDataURL(file)
   }
 
   const adaptColorsFromLogo = async (options = {}) => {
@@ -512,7 +382,6 @@ const QRStyler = ({ style, onChange }) => {
 
   return (
     <div className="space-y-6">
-      {/* Size Selection */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-3">
           Tamaño
@@ -535,7 +404,6 @@ const QRStyler = ({ style, onChange }) => {
         </div>
       </div>
 
-      {/* Color Presets */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-3">
           Colores Predefinidos
@@ -570,7 +438,6 @@ const QRStyler = ({ style, onChange }) => {
         </div>
       </div>
 
-      {/* Custom Colors */}
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -613,7 +480,6 @@ const QRStyler = ({ style, onChange }) => {
         </div>
       </div>
 
-      {/* Gradient & Dynamic Colors */}
       <div className="card-light space-y-4">
         <div className="flex items-center justify-between">
           <div>
@@ -756,7 +622,6 @@ const QRStyler = ({ style, onChange }) => {
         </div>
       </div>
 
-      {/* Dot Styles */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-3">
           Estilo del Patrón (módulos)
@@ -781,7 +646,6 @@ const QRStyler = ({ style, onChange }) => {
         </p>
       </div>
 
-      {/* Corner Styles */}
       <div className="grid md:grid-cols-2 gap-4">
         <div>
           <div className="flex items-center justify-between gap-2 mb-3">
@@ -865,16 +729,18 @@ const QRStyler = ({ style, onChange }) => {
         </div>
       </div>
 
-      {/* Logo Options */}
       <div className="card-light">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-sm font-semibold text-gray-800">Logo central</h3>
             <p className="text-xs text-gray-500 mt-1">
-              Añade un logotipo sobre el código QR. Usa imágenes PNG o SVG.
+              Añade un logo. Lo optimizamos en tu navegador antes de guardarlo.
             </p>
           </div>
           <button
+            type="button"
+            aria-label={style.logo.enabled ? 'Desactivar logo' : 'Activar logo'}
+            aria-pressed={style.logo.enabled}
             onClick={() => updateLogo({ enabled: !style.logo.enabled })}
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
               style.logo.enabled ? 'bg-primary-600' : 'bg-gray-300'
@@ -893,19 +759,27 @@ const QRStyler = ({ style, onChange }) => {
             <div className="flex items-center gap-3">
               <input
                 type="file"
-                accept="image/png,image/jpeg,image/svg+xml"
-                onChange={(e) => handleLogoUpload(e.target.files?.[0])}
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                aria-label="Subir logo"
+                onChange={(e) => {
+                  handleLogoUpload(e.target.files?.[0])
+                  e.target.value = ''
+                }}
                 className="file-input"
               />
               {style.logo.src && (
                 <button
-                  onClick={() => updateLogo({
+                  onClick={() => {
+                    uploadVersion.current += 1
+                    setLogoInfo(null)
+                    updateLogo({
                     src: '',
                     renderSrc: '',
                     enabled: false,
                     usePlate: false,
                     hasTransparentBackground: false
-                  })}
+                    })
+                  }}
                   className="btn-secondary text-sm"
                 >
                   Quitar logo
@@ -913,8 +787,10 @@ const QRStyler = ({ style, onChange }) => {
               )}
             </div>
             <p className="text-xs text-gray-500">
-              Formatos soportados: PNG, JPG, SVG. Recomendado mínimo 512×512 px.
+              PNG, JPG, WebP o SVG estático, hasta 4 MB. Se reduce a un máximo de 384 px y 48 KB.
             </p>
+            {logoInfo?.error && <p role="alert" className="text-sm text-red-600">{logoInfo.error}</p>}
+            {logoInfo?.loading && <p role="status" className="text-sm text-gray-500">Optimizando logo…</p>}
 
             {style.logo.src && (
               <div className="grid sm:grid-cols-2 gap-4">
@@ -1014,9 +890,6 @@ const QRStyler = ({ style, onChange }) => {
                           ? `${(logoInfo.size / 1024).toFixed(1)} KB`
                           : ''}
                       </p>
-                      {logoInfo.error && (
-                        <p className="text-red-500">{logoInfo.error}</p>
-                      )}
                       {logoInfo.width && logoInfo.height && (logoInfo.width < 256 || logoInfo.height < 256) && (
                         <p className="text-amber-600">
                           Considera usar una imagen de mayor resolución para evitar pixelado.
@@ -1034,7 +907,6 @@ const QRStyler = ({ style, onChange }) => {
         )}
       </div>
 
-      {/* Error Correction Level */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-3">
           Nivel de Corrección de Errores
@@ -1059,7 +931,6 @@ const QRStyler = ({ style, onChange }) => {
         </p>
       </div>
 
-      {/* Margin Toggle */}
       <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
         <div>
           <label className="block text-sm font-medium text-gray-700">

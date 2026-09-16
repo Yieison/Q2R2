@@ -4,56 +4,73 @@
 
 @layer base {
   body {
-    @apply bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    @apply bg-white text-gray-900 antialiased;
+  }
+
+  h1, h2, h3, h4 {
+    letter-spacing: -0.02em;
   }
 }
 
 @layer components {
   .input-field {
-    @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none;
+    @apply w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-lg text-sm
+           focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400
+           transition-all outline-none placeholder:text-gray-400;
   }
-  
+
   .btn-primary {
-    @apply px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium shadow-md hover:shadow-lg;
+    @apply inline-flex items-center justify-center gap-2
+           px-5 py-2.5 bg-primary-600 text-white text-sm font-semibold rounded-lg
+           hover:bg-primary-700 active:scale-[0.98]
+           transition-all shadow-sm;
   }
-  
+
   .btn-secondary {
-    @apply px-6 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium;
+    @apply inline-flex items-center justify-center gap-2
+           px-5 py-2.5 bg-white text-gray-700 text-sm font-semibold rounded-lg
+           border border-gray-200 hover:bg-gray-50 active:scale-[0.98]
+           transition-all;
   }
-  
+
   .card {
-    @apply bg-white rounded-xl shadow-lg p-6 border border-gray-100;
+    @apply bg-white rounded-2xl border border-gray-100 p-6 shadow-sm;
   }
 
   .card-light {
-    @apply bg-gray-50 border border-gray-200 rounded-xl p-5;
+    @apply bg-gray-50 border border-gray-100 rounded-xl p-5;
   }
-  
+
   .tab-button {
-    @apply px-4 py-2 rounded-lg font-medium transition-all;
+    @apply px-4 py-2 rounded-lg text-sm font-medium transition-all;
   }
-  
+
   .tab-button-active {
-    @apply bg-primary-600 text-white shadow-md;
+    @apply bg-primary-600 text-white shadow-sm;
   }
-  
+
   .tab-button-inactive {
-    @apply bg-white text-gray-600 hover:bg-gray-100 border border-gray-200;
+    @apply bg-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-100 border border-gray-200;
   }
 
   .badge {
-    @apply px-3 py-1 bg-primary-100 text-primary-700 text-xs font-semibold rounded-full uppercase tracking-wide;
+    @apply px-2.5 py-1 bg-primary-50 text-primary-700 text-xs font-semibold rounded-full;
   }
 
   .file-input {
-    @apply block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-600 hover:file:bg-primary-100 cursor-pointer;
+    @apply block w-full text-sm text-gray-600
+           file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0
+           file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-600
+           hover:file:bg-primary-100 cursor-pointer;
   }
 
   .range-slider {
-    @apply w-full h-2 bg-gray-200 rounded-full appearance-none cursor-pointer accent-primary-600;
+    @apply w-full h-1.5 bg-gray-200 rounded-full appearance-none cursor-pointer accent-primary-600;
   }
 
   .dial-code-pill {
-    @apply px-3 py-2 bg-gray-100 text-gray-700 font-semibold rounded-lg border border-gray-300 flex items-center;
+    @apply px-3 py-2.5 bg-gray-50 text-gray-700 text-sm font-medium rounded-lg border border-gray-200 flex items-center;
   }
+
 }
